@@ -39,28 +39,28 @@ ElastiCache Redis
 
 ## Architecture Decisions
 
-Three Availability Zones
+### Three Availability Zones
 
 EKS worker nodes and supporting infrastructure are distributed across three Availability Zones to reduce the impact of an AZ-level failure.
 
-Private application subnets
+### Private application subnets
 
 Worker nodes are deployed in private subnets so application workloads are not directly exposed to the Internet.
 
-ALB
+### ALB
 
 The AWS Load Balancer Controller provisions an Application Load Balancer from the Kubernetes Ingress, providing external HTTP routing without exposing the application pods directly.
 
-Aurora
+### Aurora
 
 Aurora PostgreSQL provides a managed relational datastore with Multi-AZ resilience.
 
-Redis
+### Redis
 
 ElastiCache Redis is used as a low-latency caching layer and supports Multi-AZ failover.
 
 
-# Current Status
+## Current Status
 ## Implementation Status
 
 | Area                          | Status                              |
@@ -139,6 +139,7 @@ The Kubernetes manifests provide:
 - PDB for safer rollouts and node disruptions
 - NetworkPolicy for default-deny style east-west control
 
+```text
 ---------------------------------------------------------------------
 | Component     | Purpose                                           |
 | ------------- | ------------------------------------------------- |
@@ -150,14 +151,14 @@ The Kubernetes manifests provide:
 | NetworkPolicy | Restricts unwanted pod-to-pod traffic             |
 | Probes        | Prevent unhealthy pods from receiving traffic     |
 ---------------------------------------------------------------------
-
+```
 ## Load Testing
 
 The application was tested using k6 to validate response latency,
 HTTP error rate, and behavior under increasing concurrent traffic.
 
 ### Load Profile
-
+```text
 | Stage | Duration | Target VUs |
 |---|---:|---:|
 | Warm-up | 2 min | 20 |
@@ -166,14 +167,17 @@ HTTP error rate, and behavior under increasing concurrent traffic.
 | Sustained load | 5 min | 200 |
 | Ramp-down | 2 min | 20 |
 | Cool-down | 2 min | 0 |
+```
 
 ### Acceptance Criteria
 
+```text
 | Metric | Threshold |
 |---|---:|
 | HTTP request failure rate | < 1% |
 | P95 response time | < 500 ms |
 | P99 response time | < 1 sec |
+```
 
 The test intentionally maintains 200 concurrent virtual users for
 5 minutes to evaluate sustained application behavior before
@@ -190,10 +194,11 @@ ramping down.
 6. Apply the manifests from the `kubernetes/` directory after the cluster is ready.
 7. Run the k6 test in `tests/load-test.js` against the deployed ingress endpoint.
 
-# Clone repository
+### Clone Repository
+```bash 
 git clone <your-github-repository-url>
 cd redemption-cloud-engineer-assessment
-
+```
 ## Prerequisites
 
 The following tools are required:
@@ -205,42 +210,52 @@ The following tools are required:
 - k6
 - An AWS account with permissions to provision the required resources
 
+```bash 
 terraform version
 aws --version
 kubectl version --client
 k6 version
+```
 
-# Configure Terraform
+### Configure Terraform
+```bash 
 cd terraform
 terraform init
 terraform plan
 terraform apply
+```
 
-# Configure kubectl
+### Configure kubectl
+```bash 
 aws eks update-kubeconfig \
   --region <region> \
   --name <cluster-name>
+```
 
-# Deploy application
+### Deploy application
+```bash 
 kubectl apply -f ../kubernetes/
+```
 
-# Verify
+### Verify
+```bash 
 kubectl get nodes
 kubectl get pods -n redemption
 kubectl get svc -n redemption
 kubectl get ingress -n redemption
 kubectl get hpa -n redemption
+```
 
-# Run load test
+### Run load test
 BASE_URL=https://<your-domain> k6 run tests/load-test.js
 
-# Test Observations
+## Test Observations
 
 During the sustained 200-VU load:
 
 - The application remained available.
-- HPA did not increased the number of application replicas as resource
-  utilization increased, as CPU stayed in the range of 5% rather than targetted 60%
+- HPA did not increase the number of application replicas as resource
+  utilization increased, as CPU stayed in the range of 5% rather than target 60%
 - Requests continued to be routed only to healthy pods.
 
 
@@ -264,3 +279,52 @@ Terraform needs valid AWS credentials for both the S3 backend and the AWS provid
 - Replace open CIDR ranges with Cloudflare IP ranges or your approved ingress ranges before production use.
 - Karpenter, Prometheus, Grafana, and OpenTelemetry are represented in the design but would typically be installed after cluster creation using Helm or GitOps.
 
+# Task Assignment — 3 Engineers
+the Senior should own architecture, technical decisions, integration and review, while the Juniors own well-defined implementation work.
+
+| Engineer              | Responsibility                | Key Tasks                                                                                 |
+| --------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
+| **Senior Engineer**   | Architecture & Technical Lead | Architecture, AWS design, EKS design, security, integration, code review, troubleshooting |
+| **Junior Engineer 1** | Infrastructure                | Terraform, VPC, EKS, ECR, Aurora, Redis, IAM                                              |
+| **Junior Engineer 2** | Kubernetes & Testing          | Docker, Kubernetes manifests, HPA, PDB, NetworkPolicy, ALB, k6 testing                    |
+
+## Minimize operational toil through ownership
+The team should avoid creating operational dependencies on a specific engineer.
+
+
+## Day 2 Operations
+
+### Application Failure
+
+
+### Automation and Self-Healing
+
+### Monitoring and Alerting
+Alert
+ ↓
+Check dashboard
+ ↓
+Check pod health/restarts
+ ↓
+Check application logs
+ ↓
+Check recent deployment
+ ↓
+Rollback if deployment-related
+ ↓
+Verify recovery
+
+### Standardized Operations
+
+### Failure Handling
+Alert
+ ↓
+Check EKS/node health
+ ↓
+Check AWS infrastructure
+ ↓
+Kubernetes reschedules workloads
+ ↓
+Verify service availability
+ ↓
+Escalate if required
