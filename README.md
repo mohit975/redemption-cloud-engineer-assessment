@@ -22,7 +22,7 @@ The solution provisions the infrastructure using Terraform, deploys the workload
 ## Architecture
 
 ![AWS EKS Architecture](docs/architecture.png)
-
+```text
 Internet
    ↓
 ALB
@@ -36,7 +36,7 @@ Redemption Pods
 Aurora PostgreSQL
    +
 ElastiCache Redis
-
+```
 ## Architecture Decisions
 
 ### Three Availability Zones
@@ -83,7 +83,7 @@ ElastiCache Redis is used as a low-latency caching layer and supports Multi-AZ f
 
 The HPA scales the Redemption workload horizontally based on CPU
 utilization.
-
+```text
 Traffic increase:
     ↓
 CPU utilization increases
@@ -93,13 +93,14 @@ HPA increases desired replicas
 New pods are scheduled
     ↓
 ALB distributes traffic across healthy pods
-
+```
+```text
 | Parameter        | Value |
 | ---------------- | ----: |
 | Minimum replicas |     3 |
 | Maximum replicas |    30 |
 | CPU target       |   60% |
-
+```
 
 
 ## Repository Layout
@@ -300,6 +301,7 @@ The team should avoid creating operational dependencies on a specific engineer.
 ### Automation and Self-Healing
 
 ### Monitoring and Alerting
+```text
 Alert
  ↓
 Check dashboard
@@ -313,10 +315,11 @@ Check recent deployment
 Rollback if deployment-related
  ↓
 Verify recovery
-
+```
 ### Standardized Operations
 
 ### Failure Handling
+```text
 Alert
  ↓
 Check EKS/node health
@@ -328,3 +331,4 @@ Kubernetes reschedules workloads
 Verify service availability
  ↓
 Escalate if required
+```
