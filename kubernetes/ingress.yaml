@@ -12,8 +12,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: redemption.example.com
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
