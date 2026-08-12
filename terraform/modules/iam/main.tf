@@ -22,7 +22,6 @@ resource "aws_kms_alias" "platform" {
 resource "aws_cloudwatch_log_group" "application" {
   name              = "/${var.name}/application"
   retention_in_days = var.cloudwatch_log_retention_days
-  kms_key_id        = aws_kms_key.platform.arn
 
   tags = merge(var.tags, {
     Name = "${var.name}-application-logs"
@@ -40,17 +39,6 @@ resource "aws_s3_bucket" "cloudtrail" {
   tags = merge(var.tags, {
     Name = "${var.name}-trail"
   })
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "cloudtrail" {
-  bucket = aws_s3_bucket.cloudtrail.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.platform.arn
-      sse_algorithm     = "aws:kms"
-    }
-  }
 }
 
 resource "aws_s3_bucket_public_access_block" "cloudtrail" {
@@ -117,7 +105,6 @@ resource "aws_cloudtrail" "main" {
   include_global_service_events = true
   is_multi_region_trail         = true
   enable_log_file_validation    = true
-  kms_key_id                    = aws_kms_key.platform.arn
 
   depends_on = [aws_s3_bucket_policy.cloudtrail]
 }

@@ -65,6 +65,7 @@ Terraform needs valid AWS credentials for both the S3 backend and the AWS provid
 - The ingress manifest contains placeholder values for host, certificate ARN, and security group IDs.
 - The deployment currently uses `nginx:alpine` as a test image; switch it to the ECR URL output once you push your real application image.
 - The default Terraform sizing is reduced for assessment and test use: EKS nodes default to `t3.small` and Redis defaults to `cache.t4g.micro`.
+- Aurora uses a non-prod default password that already satisfies the guard rails; override it before any real deployment.
 - Replace open CIDR ranges with Cloudflare IP ranges or your approved ingress ranges before production use.
 - Karpenter, Prometheus, Grafana, and OpenTelemetry are represented in the design but would typically be installed after cluster creation using Helm or GitOps.
 

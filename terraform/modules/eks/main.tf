@@ -52,7 +52,6 @@ module "eks" {
             volume_size           = 80
             volume_type           = "gp3"
             encrypted             = true
-            kms_key_id            = var.kms_key_arn
             delete_on_termination = true
           }
         }

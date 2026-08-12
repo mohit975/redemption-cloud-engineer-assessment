@@ -80,6 +80,12 @@ variable "db_password" {
   description = "Aurora PostgreSQL master password."
   type        = string
   sensitive   = true
+  default     = "RedemptionTest123!"
+
+  validation {
+    condition     = can(regex("^[^/@@\" ]+$", var.db_password))
+    error_message = "db_password must not contain spaces, /, @, or \" characters because Aurora PostgreSQL rejects them."
+  }
 }
 
 variable "aurora_instance_count" {

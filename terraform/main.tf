@@ -98,11 +98,6 @@ resource "aws_ecr_repository" "redemption" {
     scan_on_push = true
   }
 
-  encryption_configuration {
-    encryption_type = "KMS"
-    kms_key         = module.iam.kms_key_arn
-  }
-
   tags = merge(local.tags, {
     Name = local.name
   })

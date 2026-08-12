@@ -10,14 +10,13 @@ resource "aws_db_subnet_group" "aurora" {
 resource "aws_rds_cluster" "aurora" {
   cluster_identifier              = "${var.name}-aurora"
   engine                          = "aurora-postgresql"
-  engine_version                  = "16.4"
+  engine_version                  = "17.4"
   database_name                   = var.db_name
   master_username                 = var.db_username
   master_password                 = var.db_password
   db_subnet_group_name            = aws_db_subnet_group.aurora.name
   vpc_security_group_ids          = [var.security_group_id]
   storage_encrypted               = true
-  kms_key_id                      = var.kms_key_arn
   backup_retention_period         = 7
   preferred_backup_window         = "17:00-19:00"
   skip_final_snapshot             = var.skip_final_snapshot
@@ -42,7 +41,6 @@ resource "aws_rds_cluster_instance" "aurora" {
   cluster_identifier           = aws_rds_cluster.aurora.id
   instance_class               = "db.serverless"
   engine                       = aws_rds_cluster.aurora.engine
-  engine_version               = aws_rds_cluster.aurora.engine_version
   performance_insights_enabled = true
 
   tags = merge(var.tags, {
@@ -51,8 +49,7 @@ resource "aws_rds_cluster_instance" "aurora" {
 }
 
 resource "aws_secretsmanager_secret" "database" {
-  name       = "${var.name}/database"
-  kms_key_id = var.kms_key_arn
+  name = "${var.name}/database"
 
   tags = merge(var.tags, {
     Name = "${var.name}-database-secret"
