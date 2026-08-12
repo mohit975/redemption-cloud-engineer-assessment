@@ -37,7 +37,7 @@ variable "vpc_cidr" {
 variable "eks_version" {
   description = "Kubernetes version for the EKS control plane."
   type        = string
-  default     = "1.31"
+  default     = "1.35"
 }
 
 variable "node_instance_types" {
