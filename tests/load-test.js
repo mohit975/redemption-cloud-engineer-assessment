@@ -16,7 +16,7 @@ export const options = {
   },
 };
 
-const baseUrl = __ENV.BASE_URL || 'https://redemption.example.com';
+const baseUrl = __ENV.BASE_URL || 'http://k8s-redempti-redempti-ccf6f16de4-811560803.ap-southeast-1.elb.amazonaws.com/';
 
 export default function () {
   const response = http.get(baseUrl, {
