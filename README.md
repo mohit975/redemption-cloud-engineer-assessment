@@ -1,16 +1,112 @@
 # Redemption Assessment
 
-This repository follows the requested structure for the Accor EKS assessment and contains:
+This project implements a production-oriented reference architecture AWS EKS platform for the Redemption microservice, designed to support high availability, 
+horizontal scaling, secure service exposure, and resilience during flash-sale traffic spikes. 
+The solution provisions the infrastructure using Terraform, deploys the workload using Kubernetes manifests, and validates scalability using k6 load testing.
 
-- Terraform infrastructure for a multi-AZ Amazon EKS platform
-- Kubernetes manifests for the Redemption microservice
-- A k6 load test that simulates steady traffic and 10x flash-sale spikes
-- The architecture image used as the high-level reference
+------------------------------------------------------------
+| Area               | Implementation                      |
+| ------------------ | ----------------------------------- |
+| Compute            | Amazon EKS                          |
+| Networking         | VPC across 3 AZs                    |
+| Ingress            | AWS Load Balancer Controller + ALB  |
+| Database           | Aurora PostgreSQL                   |
+| Cache              | ElastiCache Redis                   |
+| Container Registry | Amazon ECR                          |
+| Autoscaling        | Kubernetes HPA                      |
+| Availability       | Multi-AZ + PDB                      |
+| Security           | IRSA, KMS, GuardDuty, NetworkPolicy |
+| Testing            | k6                                  |
+------------------------------------------------------------
+
+## Architecture
+
+![AWS EKS Architecture](docs/architecture.png)
+
+Internet
+   ↓
+ALB
+   ↓
+Kubernetes Ingress
+   ↓
+ClusterIP Service
+   ↓
+Redemption Pods
+   ↓
+Aurora PostgreSQL
+   +
+ElastiCache Redis
+
+## Architecture Decisions
+
+Three Availability Zones
+
+EKS worker nodes and supporting infrastructure are distributed across three Availability Zones to reduce the impact of an AZ-level failure.
+
+Private application subnets
+
+Worker nodes are deployed in private subnets so application workloads are not directly exposed to the Internet.
+
+ALB
+
+The AWS Load Balancer Controller provisions an Application Load Balancer from the Kubernetes Ingress, providing external HTTP routing without exposing the application pods directly.
+
+Aurora
+
+Aurora PostgreSQL provides a managed relational datastore with Multi-AZ resilience.
+
+Redis
+
+ElastiCache Redis is used as a low-latency caching layer and supports Multi-AZ failover.
+
+
+# Current Status
+## Implementation Status
+
+| Area                          | Status                              |
+|-------------------------------|------------------------------------ |
+| Terraform AWS infrastructure  | ✅ Implemented                     |
+| EKS cluster                   | ✅ Implemented                     |
+| Multi-AZ networking           | ✅ Implemented                     |
+| AWS Load Balancer Controller  | ✅ Implemented                     |
+| Kubernetes deployment         | ✅ Implemented                     |
+| HPA                           | ✅ Implemented                     |
+| PDB                           | ✅ Implemented                     |
+| NetworkPolicy                 | ✅ Implemented                     |
+| k6 load testing               | ✅ Implemented                     |
+| HTTPS                         | ⚠️ Production hardening required   |
+| Production application image  | ⚠️ Replace test image              |
+| Prometheus/Grafana            | 🔄 Future enhancement              |
+| Karpenter                     | 🔄 Future enhancement              |
+
+### Horizontal Pod Autoscaler
+
+The HPA scales the Redemption workload horizontally based on CPU
+utilization.
+
+Traffic increase:
+    ↓
+CPU utilization increases
+    ↓
+HPA increases desired replicas
+    ↓
+New pods are scheduled
+    ↓
+ALB distributes traffic across healthy pods
+
+| Parameter        | Value |
+| ---------------- | ----: |
+| Minimum replicas |     3 |
+| Maximum replicas |    30 |
+| CPU target       |   60% |
+
+
 
 ## Repository Layout
 
 ```text
 redemption-assessment/
+├── docker/
 ├── terraform/
 ├── kubernetes/
 ├── tests/
@@ -43,6 +139,47 @@ The Kubernetes manifests provide:
 - PDB for safer rollouts and node disruptions
 - NetworkPolicy for default-deny style east-west control
 
+---------------------------------------------------------------------
+| Component     | Purpose                                           |
+| ------------- | ------------------------------------------------- |
+| Deployment    | Runs and manages Redemption pods                  |
+| Service       | Provides stable internal service discovery        |
+| Ingress       | Exposes the service through AWS ALB               |
+| HPA           | Scales pods based on resource utilization         |
+| PDB           | Maintains minimum availability during disruptions |
+| NetworkPolicy | Restricts unwanted pod-to-pod traffic             |
+| Probes        | Prevent unhealthy pods from receiving traffic     |
+---------------------------------------------------------------------
+
+## Load Testing
+
+The application was tested using k6 to validate response latency,
+HTTP error rate, and behavior under increasing concurrent traffic.
+
+### Load Profile
+
+| Stage | Duration | Target VUs |
+|---|---:|---:|
+| Warm-up | 2 min | 20 |
+| Ramp-up | 3 min | 100 |
+| Ramp-up | 2 min | 200 |
+| Sustained load | 5 min | 200 |
+| Ramp-down | 2 min | 20 |
+| Cool-down | 2 min | 0 |
+
+### Acceptance Criteria
+
+| Metric | Threshold |
+|---|---:|
+| HTTP request failure rate | < 1% |
+| P95 response time | < 500 ms |
+| P99 response time | < 1 sec |
+
+The test intentionally maintains 200 concurrent virtual users for
+5 minutes to evaluate sustained application behavior before
+ramping down.
+
+
 ## How To Use
 
 1. Review and update variables in `terraform/variables.tf`.
@@ -52,6 +189,61 @@ The Kubernetes manifests provide:
 5. Optionally set `aws_profile` in `terraform.tfvars`, or export `AWS_PROFILE`, if you use a named AWS CLI profile.
 6. Apply the manifests from the `kubernetes/` directory after the cluster is ready.
 7. Run the k6 test in `tests/load-test.js` against the deployed ingress endpoint.
+
+# Clone repository
+git clone <your-github-repository-url>
+cd redemption-cloud-engineer-assessment
+
+## Prerequisites
+
+The following tools are required:
+
+- AWS CLI
+- Terraform
+- kubectl
+- Docker
+- k6
+- An AWS account with permissions to provision the required resources
+
+terraform version
+aws --version
+kubectl version --client
+k6 version
+
+# Configure Terraform
+cd terraform
+terraform init
+terraform plan
+terraform apply
+
+# Configure kubectl
+aws eks update-kubeconfig \
+  --region <region> \
+  --name <cluster-name>
+
+# Deploy application
+kubectl apply -f ../kubernetes/
+
+# Verify
+kubectl get nodes
+kubectl get pods -n redemption
+kubectl get svc -n redemption
+kubectl get ingress -n redemption
+kubectl get hpa -n redemption
+
+# Run load test
+BASE_URL=https://<your-domain> k6 run tests/load-test.js
+
+# Test Observations
+
+During the sustained 200-VU load:
+
+- The application remained available.
+- HPA did not increased the number of application replicas as resource
+  utilization increased, as CPU stayed in the range of 5% rather than targetted 60%
+- Requests continued to be routed only to healthy pods.
+
+
 
 ## AWS Credentials
 
