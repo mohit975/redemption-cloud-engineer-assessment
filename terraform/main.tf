@@ -90,6 +90,65 @@ module "redis" {
   tags               = local.tags
 }
 
+data "aws_eks_cluster_auth" "this" {
+  name = module.eks.cluster_name
+}
+
+resource "aws_iam_role" "alb_controller" {
+  name = "${local.name}-alb-controller"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Principal = {
+          Federated = module.eks.oidc_provider_arn
+        }
+        Condition = {
+          StringEquals = {
+            "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud" = "sts.amazonaws.com"
+            "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+          }
+        }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy" "alb_controller" {
+  name = "${local.name}-alb-controller"
+  role = aws_iam_role.alb_controller.id
+  policy = file("${path.module}/modules/iam/aws-load-balancer-controller-policy.json")
+}
+
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  version    = "1.8.1"
+  wait       = true
+
+  values = [yamlencode({
+    clusterName = module.eks.cluster_name
+    region      = var.aws_region
+    vpcId       = module.vpc.vpc_id
+    serviceAccount = {
+      create = true
+      name   = "aws-load-balancer-controller"
+      annotations = {
+        "eks.amazonaws.com/role-arn" = aws_iam_role.alb_controller.arn
+      }
+    }
+  })]
+
+  depends_on = [module.eks, aws_iam_role_policy.alb_controller]
+}
+
 resource "aws_ecr_repository" "redemption" {
   name                 = local.name
   image_tag_mutability = "MUTABLE"

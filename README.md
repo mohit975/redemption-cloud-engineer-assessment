@@ -24,6 +24,7 @@ The Terraform code provisions:
 
 - VPC with public, private, and data subnets across three Availability Zones
 - Amazon EKS with IRSA enabled and a baseline managed node group
+- AWS Load Balancer Controller installed with Terraform so Kubernetes Ingress creates an ALB
 - Amazon Aurora PostgreSQL with Multi-AZ resilience
 - Amazon ElastiCache for Redis with Multi-AZ failover
 - Amazon ECR for storing the workload image
@@ -37,6 +38,7 @@ The Kubernetes manifests provide:
 - A test Deployment using `nginx:alpine` with health checks and spread constraints
 - ClusterIP Service
 - AWS ALB-backed Ingress
+- The ALB is provisioned automatically by the AWS Load Balancer Controller
 - HPA for pod autoscaling
 - PDB for safer rollouts and node disruptions
 - NetworkPolicy for default-deny style east-west control
@@ -63,6 +65,7 @@ Terraform needs valid AWS credentials for both the S3 backend and the AWS provid
 ## Notes
 
 - The ingress manifest contains placeholder values for host, certificate ARN, and security group IDs.
+- The Ingress is configured for a public HTTP ALB so it can provision immediately; add HTTPS later if needed.
 - The deployment currently uses `nginx:alpine` as a test image; switch it to the ECR URL output once you push your real application image.
 - The default Terraform sizing is reduced for assessment and test use: EKS nodes default to `t3.small` and Redis defaults to `cache.t4g.micro`.
 - Aurora uses a non-prod default password that already satisfies the guard rails; override it before any real deployment.
